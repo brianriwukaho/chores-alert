@@ -32,7 +32,18 @@ app.listen(port, () => {
 
 app.post('/api/create-board', async (req, res) => {});
 
-app.post('/api/get-board', async (req, res) => {});
+app.post('/api/get-board/:boardId', async (req, res) => {
+  const boardId = req.params.boardId;
+
+  const querySnapshot = await firestore()
+    .collection('boards')
+    .where('boardId', '==', boardId)
+    .get();
+
+  querySnapshot.docs.forEach((doc) => {
+    res.status(200).send(doc.data());
+  });
+});
 
 app.get('/api/get-boards/:userId', async (req, res) => {
   let boardsIds;
@@ -41,15 +52,14 @@ app.get('/api/get-boards/:userId', async (req, res) => {
   const results = [];
   const userId = req.params.userId;
 
-  await firestore()
+  const userBoardsQuerySnapshort = await firestore()
     .collection('user-boards')
     .where('userId', '==', userId)
-    .get()
-    .then((querySnapshot) => {
-      querySnapshot.docs.forEach((doc) => {
-        boardsIds = doc.data().boards;
-      });
-    });
+    .get();
+
+  userBoardsQuerySnapshort.docs.forEach((doc) => {
+    boardsIds = doc.data().boards;
+  });
 
   boardsIds.forEach((boardsId) => {
     const promise = firestore()
@@ -65,9 +75,8 @@ app.get('/api/get-boards/:userId', async (req, res) => {
     promiseArray.push(promise);
   });
 
-  Promise.all(promiseArray).then(() => {
-    res.status(200).send(results);
-  });
+  await Promise.all(promiseArray);
+  res.status(200).send(results);
 });
 
 app.post('/api/link-board', async (req, res) => {});
