@@ -30,53 +30,101 @@ app.listen(port, () => {
   console.log(`application is running on port ${port}.`);
 });
 
-app.post('/api/create-board', async (req, res) => {});
+app.get('/api/create-board/:userId', async (req, res) => {
+  try {
+    let boardsIds = [];
 
-app.post('/api/get-board/:boardId', async (req, res) => {
-  const boardId = req.params.boardId;
+    const userId = req.params.userId;
 
-  const querySnapshot = await firestore()
-    .collection('boards')
-    .where('boardId', '==', boardId)
-    .get();
+    const userBoardsQuerySnapshort = await firestore()
+      .collection('user-boards')
+      .where('userId', '==', userId)
+      .get();
 
-  querySnapshot.docs.forEach((doc) => {
-    res.status(200).send(doc.data());
-  });
+    if (userBoardsQuerySnapshort.docs.length) {
+      userBoardsQuerySnapshort.docs.forEach((doc) => {
+        console.log(doc.data());
+        boardsIds = doc.data().boards;
+      });
+    }
+
+    console.log(boardsIds);
+
+    const docRef = await db.collection('boards').add({});
+
+    await docRef.update({ id: docRef.id });
+
+    boardsIds.push(docRef.id);
+
+    await db
+      .collection('user-boards')
+      .doc(userId)
+      .set({ boards: boardsIds, userId: userId }, { merge: true });
+
+    console.log('sadas');
+    res.status(200).send({ created: docRef.id });
+  } catch (e) {
+    console.log(e);
+    res.status(500).send(e);
+  }
+});
+
+app.get('/api/get-board/:boardId', async (req, res) => {
+  try {
+    const boardId = req.params.boardId;
+
+    const querySnapshot = await firestore()
+      .collection('boards')
+      .where('boardId', '==', boardId)
+      .get();
+
+    querySnapshot.docs.forEach((doc) => {
+      res.status(200).send(doc.data());
+    });
+  } catch (e) {
+    console.log(e);
+    res.status(500).send(e);
+  }
 });
 
 app.get('/api/get-boards/:userId', async (req, res) => {
-  let boardsIds;
+  try {
+    let boardsIds;
 
-  const promiseArray = [];
-  const results = [];
-  const userId = req.params.userId;
+    const promiseArray = [];
+    const results = [];
+    const userId = req.params.userId;
 
-  const userBoardsQuerySnapshort = await firestore()
-    .collection('user-boards')
-    .where('userId', '==', userId)
-    .get();
+    const userBoardsQuerySnapshort = await firestore()
+      .collection('user-boards')
+      .where('userId', '==', userId)
+      .get();
 
-  userBoardsQuerySnapshort.docs.forEach((doc) => {
-    boardsIds = doc.data().boards;
-  });
+    userBoardsQuerySnapshort.docs.forEach((doc) => {
+      boardsIds = doc.data().boards;
+    });
 
-  boardsIds.forEach((boardsId) => {
-    const promise = firestore()
-      .collection('boards')
-      .where('boardId', '==', boardsId)
-      .get()
-      .then((querySnapshot) => {
-        querySnapshot.docs.forEach((doc) => {
-          results.push(doc.data());
+    boardsIds.forEach((boardsId) => {
+      const promise = firestore()
+        .collection('boards')
+        .where('boardId', '==', boardsId)
+        .get()
+        .then((querySnapshot) => {
+          querySnapshot.docs.forEach((doc) => {
+            results.push(doc.data());
+          });
         });
-      });
 
-    promiseArray.push(promise);
-  });
+      promiseArray.push(promise);
+    });
 
-  await Promise.all(promiseArray);
-  res.status(200).send(results);
+    await Promise.all(promiseArray);
+
+    res.status(200).send(results);
+  } catch (e) {
+    console.log(e);
+    res.status(500).send(e);
+  }
 });
 
 app.post('/api/link-board', async (req, res) => {});
